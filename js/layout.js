@@ -2,7 +2,8 @@
   "use strict";
 
   function positiveInteger(value, fallback) {
-    return Math.max(1, Number.parseInt(value, 10) || fallback);
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? fallback : Math.max(1, parsed);
   }
 
   function normalizeLayout(layout) {

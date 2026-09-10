@@ -10,11 +10,15 @@ function loadLayoutHelpers() {
   return sandbox.window.SeatLayout;
 }
 
+function plain(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 test("normalizes legacy group data to a grid with no aisle", () => {
   const { normalizeLayout } = loadLayoutHelpers();
 
   assert.deepEqual(
-    normalizeLayout({ type: "group", rows: 3, cols: 8, groupSize: 6 }),
+    plain(normalizeLayout({ type: "group", rows: 3, cols: 8, groupSize: 6 })),
     { rows: 3, cols: 8, aisle: false }
   );
 });
@@ -31,7 +35,7 @@ test("clamps invalid grid dimensions and preserves an enabled aisle", () => {
   const { normalizeLayout } = loadLayoutHelpers();
 
   assert.deepEqual(
-    normalizeLayout({ rows: 0, cols: -3, aisle: true }),
+    plain(normalizeLayout({ rows: 0, cols: -3, aisle: true })),
     { rows: 1, cols: 1, aisle: true }
   );
 });
