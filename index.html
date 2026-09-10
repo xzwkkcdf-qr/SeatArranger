@@ -10,8 +10,8 @@
   <!-- 顶部工具栏 -->
   <header class="topbar">
     <div class="brand">
-      <span class="brand-logo">📐</span>
-      <span class="brand-name">座位表编排工具</span>
+      <span class="brand-seal" aria-hidden="true">座</span>
+      <span class="brand-name">座位编排</span>
     </div>
     <div class="toolbar">
       <button id="btn-import" class="btn btn-primary" title="导入 Excel 名单">
@@ -23,15 +23,6 @@
       <div class="vdiv"></div>
 
       <label class="field">
-        <span class="field-label">布局</span>
-        <select id="layout-type" class="select">
-          <option value="grid">行列式</option>
-          <option value="group">小组式</option>
-          <option value="roundtable">圆桌式</option>
-        </select>
-      </label>
-
-      <label class="field">
         <span class="field-label">列数</span>
         <input id="layout-cols" type="number" class="num" min="1" max="20" value="6">
       </label>
@@ -39,9 +30,9 @@
         <span class="field-label">行数</span>
         <input id="layout-rows" type="number" class="num" min="1" max="30" value="6">
       </label>
-      <label class="field group-only round-only" style="display:none">
-        <span class="field-label">每组</span>
-        <input id="layout-groupsize" type="number" class="num" min="2" max="12" value="6">
+      <label class="field field-toggle" title="在教室中央留出纵向通道">
+        <input id="layout-aisle" type="checkbox">
+        <span class="field-label">中央走道</span>
       </label>
 
       <button id="btn-apply-layout" class="btn">应用布局</button>

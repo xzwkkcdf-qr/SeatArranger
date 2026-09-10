@@ -10,7 +10,7 @@
   let uidSeq = 1;
   const newUid = () => "u" + (uidSeq++);
 
-  const defaultLayout = { type:"grid", rows:6, cols:6, groupSize:6 };
+  const defaultLayout = { rows:6, cols:6, aisle:false };
   const defaultOptions = { showPodium:true, showId:false, showGrid:true };
 
   function blankClass(name){
@@ -42,6 +42,11 @@
         const data = JSON.parse(raw);
         state.classes = Array.isArray(data.classes) ? data.classes : [];
         state.currentId = data.currentId || (state.classes[0] && state.classes[0].id) || null;
+        state.classes.forEach(c=>{
+          c.layout = SeatLayout.normalizeLayout(c.layout);
+          c.seating = Array.isArray(c.seating) ? c.seating : [];
+          c.options = { ...defaultOptions, ...(c.options || {}) };
+        });
         // 恢复 uidSeq
         let maxUid = 0;
         state.classes.forEach(c=>c.students.forEach(s=>{ if(s.uid) {const n=parseInt(s.uid.slice(1)); if(!isNaN(n)&&n>maxUid)maxUid=n;} }));
@@ -83,9 +88,8 @@
 
   /* ---------- 座位数计算 ---------- */
   function seatCount(layout){
-    if(layout.type==="grid") return Math.max(1, layout.rows*layout.cols);
-    // group / roundtable: cols = 组/桌数, groupSize = 每组人数
-    return Math.max(1, layout.cols*layout.groupSize);
+    const normalized = SeatLayout.normalizeLayout(layout);
+    return normalized.rows * normalized.cols;
   }
 
   /* ============================================================
@@ -210,32 +214,13 @@
       </div>`).join("");
   }
 
-  /* ---------- 布局字段显隐与标签 ---------- */
+  /* ---------- 布局字段 ---------- */
   function renderLayoutFields(){
     const c = curClass(); if(!c) return;
-    const L = c.layout;
-    const typeSel = $("#layout-type");
-    typeSel.value = L.type;
-    const rowsWrap = $("#layout-rows").closest(".field");
-    const colsWrap = $("#layout-cols").closest(".field");
-    const groupWrap = $("#layout-groupsize").closest(".field");
-    const colsLabel = colsWrap.querySelector(".field-label");
-    const rowsLabel = rowsWrap.querySelector(".field-label");
-
-    if(L.type==="grid"){
-      rowsWrap.style.display="";
-      colsWrap.style.display="";
-      groupWrap.style.display="none";
-      colsLabel.textContent="列数";
-      rowsLabel.textContent="行数";
-      $("#layout-rows").value=L.rows; $("#layout-cols").value=L.cols;
-    } else {
-      rowsWrap.style.display="none";
-      colsWrap.style.display="";
-      groupWrap.style.display="";
-      colsLabel.textContent = L.type==="roundtable" ? "桌数" : "组数";
-      $("#layout-cols").value=L.cols; $("#layout-groupsize").value=L.groupSize;
-    }
+    c.layout = SeatLayout.normalizeLayout(c.layout);
+    $("#layout-rows").value = c.layout.rows;
+    $("#layout-cols").value = c.layout.cols;
+    $("#layout-aisle").checked = c.layout.aisle;
   }
 
   /* ---------- 座位表渲染 ---------- */
@@ -251,6 +236,7 @@
     $("#podium").classList.toggle("hidden-podium", !c.options.showPodium);
 
     const grid = $("#seat-grid");
+    c.layout = SeatLayout.normalizeLayout(c.layout);
     const L = c.layout;
     // 保证 seating 长度
     const n = seatCount(L);
@@ -259,9 +245,7 @@
 
     grid.innerHTML = "";
     grid.className = "seat-grid";
-    if(L.type==="grid") renderGrid(grid, c);
-    else if(L.type==="group") renderGroup(grid, c);
-    else renderRound(grid, c);
+    renderGrid(grid, c);
 
     // 绑定座位事件
     bindSeatEvents(grid);
@@ -275,12 +259,11 @@
     setStatus(`已入座 ${seated} / ${total} 名学生 · 布局：${layoutLabel(c.layout)}`);
   }
   function layoutLabel(L){
-    return L.type==="grid" ? `行列式 ${L.rows}×${L.cols}`
-      : L.type==="group" ? `小组式 ${L.cols}组×${L.groupSize}人`
-      : `圆桌式 ${L.cols}桌×${L.groupSize}人`;
+    const normalized = SeatLayout.normalizeLayout(L);
+    return `行列式 ${normalized.rows}×${normalized.cols}${normalized.aisle ? " · 中央走道" : ""}`;
   }
 
-  function seatHtml(c, idx, seatNoText, style){
+  function seatHtml(c, idx, seatNoText, extraClass){
     const uid = c.seating[idx];
     const student = uid ? c.students.find(s=>s.uid===uid) : null;
     const isSpecial = c.options._special && c.options._special.includes(idx);
@@ -289,6 +272,7 @@
     if(!student) cls += " empty-seat";
     if(isSpecial) cls += " special";
     if(isPinned) cls += " pinned";
+    if(extraClass) cls += " " + extraClass;
     const showGrid = c.options.showGrid;
     const showId = c.options.showId;
     const noText = showGrid ? `<span class="seat-no">${seatNoText||""}</span>` : "";
@@ -302,63 +286,22 @@
         <button data-act="special" title="${isSpecial?"取消特殊标记":"标记为特殊座位"}">${isSpecial?"★":"☆"}</button>
         ${student?`<button data-act="clear" title="移回名单">✕</button>`:""}
       </span>`;
-    const styleAttr = style ? ` style="${style}"` : "";
-    return `<div class="${cls}" data-seat="${idx}" draggable="${student?'true':'false'}"${styleAttr}>${noText}${body}${actions}</div>`;
+    return `<div class="${cls}" data-seat="${idx}" draggable="${student?'true':'false'}">${noText}${body}${actions}</div>`;
   }
 
   function renderGrid(grid, c){
     const {rows,cols} = c.layout;
+    const aisleAfter = SeatLayout.getAisleAfterColumn(c.layout);
     for(let r=0;r<rows;r++){
       const row = document.createElement("div");
       row.className = "seat-row";
       for(let col=0;col<cols;col++){
         const idx = r*cols+col;
-        row.insertAdjacentHTML("beforeend", seatHtml(c, idx, String(idx+1)));
+        const extraClass = col === aisleAfter ? "aisle-after" : "";
+        row.insertAdjacentHTML("beforeend", seatHtml(c, idx, String(idx+1), extraClass));
       }
       grid.appendChild(row);
     }
-  }
-
-  function renderGroup(grid, c){
-    const {cols:groups, groupSize} = c.layout;
-    const row = document.createElement("div");
-    row.className = "group-row";
-    for(let g=0; g<groups; g++){
-      const group = document.createElement("div");
-      group.className = "group";
-      group.insertAdjacentHTML("beforeend", `<div class="group-label">第 ${g+1} 组</div>`);
-      const desks = document.createElement("div");
-      desks.className = "group-desks";
-      for(let i=0;i<groupSize;i++){
-        const idx = g*groupSize+i;
-        desks.insertAdjacentHTML("beforeend", seatHtml(c, idx, `${g+1}-${i+1}`));
-      }
-      group.appendChild(desks);
-      row.appendChild(group);
-    }
-    grid.appendChild(row);
-  }
-
-  function renderRound(grid, c){
-    const {cols:tables, groupSize} = c.layout;
-    const row = document.createElement("div");
-    row.className = "table-row";
-    for(let t=0; t<tables; t++){
-      const table = document.createElement("div");
-      table.className = "round";
-      table.insertAdjacentHTML("beforeend", `<div class="round-label">桌${t+1}</div>`);
-      const radius = 62;
-      for(let i=0;i<groupSize;i++){
-        const idx = t*groupSize+i;
-        const angle = (Math.PI*2*i)/groupSize - Math.PI/2; // 从正上方开始
-        const x = Math.cos(angle)*radius;
-        const y = Math.sin(angle)*radius;
-        const style = `left:calc(50% + ${x.toFixed(1)}px - 32px); top:calc(50% + ${y.toFixed(1)}px - 27px);`;
-        table.insertAdjacentHTML("beforeend", seatHtml(c, idx, `${t+1}-${i+1}`, style));
-      }
-      row.appendChild(table);
-    }
-    grid.appendChild(row);
   }
 
   /* ---------- 座位交互 ---------- */
@@ -583,13 +526,12 @@
    * ============================================================ */
   function applyLayout(){
     const c = curClass(); if(!c) return;
-    const type = $("#layout-type").value;
     const cols = Math.max(1, parseInt($("#layout-cols").value)||1);
     const rows = Math.max(1, parseInt($("#layout-rows").value)||1);
-    const groupSize = Math.max(2, parseInt($("#layout-groupsize").value)||6);
+    const aisle = $("#layout-aisle").checked;
     // 切换布局前，先收集当前已入座的学生 uid（保持原顺序），避免学生因布局变更而“消失”
     const seatedUids = c.seating.filter(Boolean);
-    c.layout = { type, rows, cols, groupSize };
+    c.layout = { rows, cols, aisle };
     const n = seatCount(c.layout);
     // 重建 seating：把已入座学生按原顺序依次填入新布局的前若干座位，其余留空
     const newSeating = new Array(n).fill(null);
@@ -738,16 +680,7 @@
     $("#file-input").addEventListener("change", e=>{ handleFile(e.target.files[0]); e.target.value=""; });
 
     // 布局
-    $("#layout-type").addEventListener("change", ()=>{
-      const c = curClass(); if(!c) return;
-      const type = $("#layout-type").value;
-      c.layout.type = type;
-      // 切换时设置合理默认
-      if(type==="grid"){ c.layout.rows=6; c.layout.cols=6; }
-      else { c.layout.cols = type==="roundtable"?6:8; c.layout.groupSize=6; }
-      renderLayoutFields();
-      applyLayout();
-    });
+    $("#layout-aisle").addEventListener("change", applyLayout);
     $("#btn-apply-layout").addEventListener("click", applyLayout);
 
     // 排序/随机/清空
