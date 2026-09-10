@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f3f7f3">
+  <meta name="theme-color" content="#f6f1e8">
   <title>座位编排 · Classroom Planner</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -17,6 +17,11 @@
             <p class="eyebrow">CLASSROOM / SEAT PLANNER</p>
             <h1>座位编排</h1>
           </div>
+        </div>
+        <div class="palette-rail" aria-label="视觉色票">
+          <span class="palette-swatch swatch-nakabeni" title="中紅 / Nakabeni"><i></i><b>中紅</b></span>
+          <span class="palette-swatch swatch-ginnezumi" title="銀鼠 / Ginnezumi"><i></i><b>銀鼠</b></span>
+          <span class="palette-swatch swatch-kokiake" title="深緋 / Kokiake"><i></i><b>深緋</b></span>
         </div>
         <div class="header-actions">
           <div class="header-stat"><span class="stat-label">已保存方案</span><strong id="saved-count">0</strong></div>
@@ -166,6 +171,7 @@
     document.getElementById('btn-add-cancel-secondary').addEventListener('click', function () {
       document.getElementById('btn-add-cancel').click();
     });
+    document.body.classList.add('app-ready');
   </script>
 </body>
 </html>

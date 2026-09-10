@@ -302,7 +302,8 @@
         ${student?`<button data-act="clear" title="移回名单">✕</button>`:""}
       </span>`;
     const label = student ? `${student.name}，第 ${seatNoText} 号座位` : `第 ${seatNoText} 号空座位`;
-    return `<div class="${cls}" data-seat="${idx}" draggable="${student?'true':'false'}" tabindex="${student?'0':'-1'}" aria-label="${escapeHtml(label)}">${noText}${body}${actions}</div>`;
+    const delay = Math.min(idx, 35) * 18;
+    return `<div class="${cls}" data-seat="${idx}" draggable="${student?'true':'false'}" tabindex="${student?'0':'-1'}" style="--seat-delay:${delay}ms" aria-label="${escapeHtml(label)}">${noText}${body}${actions}</div>`;
   }
 
   function renderGrid(grid, c){
