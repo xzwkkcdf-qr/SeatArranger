@@ -1,19 +1,171 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#F5F0E6">
-  <title>座位编排工具</title><link rel="stylesheet" href="css/style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f7f3">
+  <title>座位编排 · Classroom Planner</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topbar"><div class="brand-lockup"><div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div><div><div class="brand-name">座位编排</div><div class="brand-sub">本地座位表工具</div></div></div><div class="topbar-context"><span class="eyebrow">当前方案</span><select id="class-select" class="select select-quiet" aria-label="选择方案"></select></div><div class="toolbar"><button id="btn-import" class="btn btn-ghost" title="导入 Excel 名单"><span class="btn-icon">↥</span> 导入名单</button><input type="file" id="file-input" accept=".xlsx,.xls,.csv" hidden><button id="btn-sample" class="btn btn-ghost">载入示例</button><span class="toolbar-divider"></span><button id="btn-save-class" class="btn btn-primary">保存方案</button><button id="btn-export-img" class="btn btn-ghost">导出图片</button><button id="btn-export-pdf" class="btn btn-ghost">导出 PDF</button><button id="btn-print" class="btn btn-ghost">打印</button></div></header>
-<main class="app-shell"><aside class="sidebar">
-<section class="side-section class-section"><div class="section-kicker">方案</div><div class="class-title-row"><input id="class-name" type="text" class="class-name-input" placeholder="方案名称"><button id="btn-rename-class" class="icon-button" title="重命名方案" aria-label="重命名方案">↗</button></div><div class="class-actions"><button id="btn-add-class" class="text-button accent">+ 新建方案</button><button id="btn-del-class" class="text-button danger">删除</button></div><div class="saved-hint"><span class="status-dot"></span> 已保存 <b id="saved-count">0</b> 个方案</div></section>
-<section class="side-section roster-section"><div class="section-heading"><div><div class="section-kicker">名单</div><h2>待安排名单</h2></div><span class="count-pill" id="unseated-count">0</span></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="search-student" type="search" placeholder="搜索姓名或编号" autocomplete="off"></label><div id="unseated-list" class="student-list"><div class="empty-tip">导入名单，开始编排座位</div></div><button id="btn-add-student" class="add-student-button"><span>＋</span> 手动添加</button></section>
-<section class="side-section shortcuts"><div class="section-kicker">快捷操作</div><button id="btn-sort-id" class="shortcut-button"><span class="shortcut-icon">01</span><span>按编号排座</span><span class="shortcut-arrow">→</span></button><button id="btn-sort-name" class="shortcut-button"><span class="shortcut-icon">文</span><span>按姓名排座</span><span class="shortcut-arrow">→</span></button><button id="btn-random" class="shortcut-button"><span class="shortcut-icon">✳</span><span>随机排座</span><span class="shortcut-arrow">→</span></button><button id="btn-clear" class="shortcut-button muted"><span class="shortcut-icon">⌫</span><span>清空座位</span><span class="shortcut-arrow">→</span></button></section>
-</aside>
-<section class="workspace"><div class="workspace-head"><div><div class="section-kicker">座位表 / 01</div><input id="chart-title" class="chart-title-input" type="text" placeholder="方案标题"><p class="workspace-subtitle">拖拽学生进入座位，或在座位之间交换位置</p></div><div class="head-stats"><div class="head-stat"><span id="stat-seated">0</span><small>已安排</small></div><div class="head-stat"><span id="stat-total">0</span><small>总人数</small></div><div class="head-stat accent-stat"><span id="stat-capacity">36</span><small>座位容量</small></div></div></div>
-<div class="studio-card"><div class="studio-toolbar"><div class="layout-controls"><span class="control-label">布局</span><label class="mini-field"><span>行</span><input id="layout-rows" type="number" min="1" max="30" value="6" aria-label="行数"></label><label class="mini-field"><span>列</span><input id="layout-cols" type="number" min="1" max="20" value="6" aria-label="列数"></label><label class="aisle-toggle"><input id="layout-aisle" type="checkbox" aria-label="启用中央走道"><span class="toggle-track"></span><span>中央走道</span></label><button id="btn-apply-layout" class="apply-layout">应用布局 <span>↗</span></button></div><div class="view-controls"><label class="toggle-control"><input id="show-podium" type="checkbox" checked><span class="toggle-track"></span>讲台</label><label class="toggle-control"><input id="show-id" type="checkbox"><span class="toggle-track"></span>编号</label><label class="toggle-control"><input id="show-grid" type="checkbox" checked><span class="toggle-track"></span>座位号</label></div></div>
-<div id="chart-wrap" class="chart-wrap"><div class="room-label"><span class="room-line"></span>前方区域<span class="room-line"></span></div><div id="podium" class="podium"><span class="podium-light"></span><span>讲台</span><small>可选标题</small></div><div id="seat-grid" class="seat-grid"></div><div class="room-legend"><span><i class="legend-dot occupied"></i>已安排</span><span><i class="legend-dot empty"></i>空座位</span><span><i class="legend-dot aisle"></i>走道</span></div></div><div class="chart-foot"><span class="live-dot"></span><span id="status-bar" aria-live="polite">准备开始编排</span></div></div></section></main>
-<div id="modal-add" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="add-title"><div class="modal-card"><div class="modal-kicker">添加学生</div><h3 id="add-title">添加学生</h3><p class="modal-subtitle">录入一位学生，稍后可拖入任意座位。</p><label class="field-block"><span>姓名</span><input id="add-name" type="text" class="text" placeholder="例如：林芷若"></label><label class="field-block"><span>学号</span><input id="add-id" type="text" class="text" placeholder="选填"></label><label class="field-block"><span>备注</span><input id="add-note" type="text" class="text" placeholder="例如：靠近讲台"></label><div class="modal-actions"><button id="btn-add-cancel" class="btn btn-ghost">取消</button><button id="btn-add-confirm" class="btn btn-primary">添加学生 <span>↗</span></button></div></div></div><div id="toast" class="toast hidden"></div>
-<script src="libs/xlsx.full.min.js"></script><script src="libs/html2canvas.min.js"></script><script src="libs/jspdf.umd.min.js"></script><script src="js/layout.js"></script><script src="js/app.js"></script>
-</body></html>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div>
+            <p class="eyebrow">CLASSROOM / SEAT PLANNER</p>
+            <h1>座位编排</h1>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div class="header-stat"><span class="stat-label">已保存方案</span><strong id="saved-count">0</strong></div>
+          <span class="header-divider" aria-hidden="true"></span>
+          <button class="button button-soft" id="btn-sample" type="button">载入示例</button>
+          <button class="button button-primary" id="btn-import" type="button">导入名单 <span aria-hidden="true">↗</span></button>
+          <input id="file-input" type="file" accept=".xlsx,.xls,.csv" hidden>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar" aria-label="班级与未入座名单">
+        <div class="sidebar-inner">
+          <section class="sidebar-section class-section">
+            <div class="section-kicker"><span>01</span><span>方案</span></div>
+            <div class="class-select-row">
+              <select id="class-select" aria-label="选择方案"></select>
+              <button class="icon-button" id="btn-add-class" type="button" title="新建方案" aria-label="新建方案">＋</button>
+            </div>
+            <div class="class-name-row">
+              <input id="class-name" type="text" aria-label="方案名称" placeholder="当前方案名称">
+              <button class="icon-button" id="btn-rename-class" type="button" title="重命名" aria-label="重命名">↗</button>
+              <button class="icon-button danger" id="btn-del-class" type="button" title="删除方案" aria-label="删除方案">×</button>
+            </div>
+          </section>
+
+          <section class="sidebar-section roster-section">
+            <div class="section-heading">
+              <div>
+                <div class="section-kicker"><span>02</span><span>名单</span></div>
+                <h2>未入座学生</h2>
+              </div>
+              <span class="count-badge" id="unseated-count">0</span>
+            </div>
+            <div class="search-wrap">
+              <span class="search-glyph" aria-hidden="true">⌕</span>
+              <input id="search-student" type="search" placeholder="搜索姓名或学号" autocomplete="off">
+              <kbd>/</kbd>
+            </div>
+            <div class="roster-toolbar">
+              <span class="helper-text">拖到座位即可安排</span>
+              <button class="button button-compact button-outline" id="btn-add-student" type="button">＋ 手动添加</button>
+            </div>
+            <div id="unseated-list" class="roster-list" aria-live="polite"></div>
+          </section>
+
+          <div class="sidebar-bottom">
+            <p class="sidebar-note"><span class="live-dot" aria-hidden="true"></span> 本地自动保存 · 拖拽排座已启用</p>
+            <div class="sidebar-meta"><span>SeatArranger</span><span>v1.0</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="main-stage" aria-label="座位表工作区">
+        <div class="stage-toolbar">
+          <div class="stage-heading">
+            <div class="section-kicker"><span>03</span><span>排座画布</span></div>
+            <div class="title-line">
+              <input id="chart-title" type="text" aria-label="座位表标题" value="座位表">
+              <span class="title-edit" aria-hidden="true">⌘ S</span>
+            </div>
+          </div>
+          <div class="stat-strip" aria-label="座位统计">
+            <div class="stat-item"><span>已入座</span><strong id="stat-seated">0</strong></div>
+            <div class="stat-item"><span>学生</span><strong id="stat-total">0</strong></div>
+            <div class="stat-item"><span>容量</span><strong id="stat-capacity">0</strong></div>
+          </div>
+        </div>
+
+        <div class="control-bar">
+          <div class="control-group layout-control">
+            <span class="control-label">布局</span>
+            <label><span>行</span><input id="layout-rows" type="number" min="1" max="30" inputmode="numeric"></label>
+            <span class="multiply" aria-hidden="true">×</span>
+            <label><span>列</span><input id="layout-cols" type="number" min="1" max="30" inputmode="numeric"></label>
+            <label class="check-label"><input id="layout-aisle" type="checkbox"><span>中央走道</span></label>
+            <button class="button button-compact button-dark" id="btn-apply-layout" type="button">应用</button>
+          </div>
+          <div class="control-group quick-actions">
+            <button class="text-button" id="btn-sort-id" type="button">按学号</button>
+            <button class="text-button" id="btn-sort-name" type="button">按姓名</button>
+            <button class="text-button" id="btn-random" type="button">随机排座</button>
+            <button class="text-button text-danger" id="btn-clear" type="button">清空座位</button>
+          </div>
+        </div>
+
+        <div class="canvas-shell">
+          <div id="chart-wrap" class="chart-wrap">
+            <div class="chart-head">
+              <div>
+                <span class="chart-overline">ROOM MAP / LIVE</span>
+                <p class="chart-subtitle">拖动学生或座位调整位置 · 点击座位上的星标标记特殊位置</p>
+              </div>
+              <div class="view-options" aria-label="显示选项">
+                <label class="toggle-label"><input id="show-podium" type="checkbox"><span>讲台</span></label>
+                <label class="toggle-label"><input id="show-id" type="checkbox"><span>学号</span></label>
+                <label class="toggle-label"><input id="show-grid" type="checkbox"><span>编号</span></label>
+              </div>
+            </div>
+            <div id="podium" class="podium" aria-label="讲台">讲台 / FRONT</div>
+            <div id="seat-grid" class="seat-grid" aria-label="座位网格"></div>
+            <div class="chart-foot" id="status-bar" role="status">准备就绪</div>
+          </div>
+        </div>
+
+        <footer class="stage-footer">
+          <div class="footer-actions">
+            <button class="button button-soft" id="btn-save-class" type="button">保存方案</button>
+            <button class="button button-soft" id="btn-export-img" type="button">导出 PNG</button>
+            <button class="button button-soft" id="btn-export-pdf" type="button">导出 PDF</button>
+            <button class="button button-soft" id="btn-print" type="button">打印</button>
+          </div>
+          <p class="footer-hint">提示：座位支持拖拽交换，名单支持拖回侧栏</p>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal-add" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <span class="section-kicker"><span>NEW</span><span>学生</span></span>
+          <h2 id="modal-title">添加学生</h2>
+        </div>
+        <button class="icon-button" id="btn-add-cancel" type="button" title="关闭" aria-label="关闭">×</button>
+      </div>
+      <label class="field-label" for="add-name">姓名 <input id="add-name" type="text" placeholder="例如：林晓晓" autocomplete="off"></label>
+      <label class="field-label" for="add-id">学号 <input id="add-id" type="text" placeholder="可选" autocomplete="off"></label>
+      <label class="field-label" for="add-note">备注 <input id="add-note" type="text" placeholder="可选，例如：靠窗" autocomplete="off"></label>
+      <div class="modal-actions">
+        <button class="button button-soft" id="btn-add-cancel-secondary" type="button">取消</button>
+        <button class="button button-primary" id="btn-add-confirm" type="button">添加学生 <span aria-hidden="true">↗</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script src="libs/xlsx.full.min.js"></script>
+  <script src="libs/html2canvas.min.js"></script>
+  <script src="libs/jspdf.umd.min.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.getElementById('btn-add-cancel-secondary').addEventListener('click', function () {
+      document.getElementById('btn-add-cancel').click();
+    });
+  </script>
+</body>
+</html>
