@@ -39,3 +39,13 @@ test("clamps invalid grid dimensions and preserves an enabled aisle", () => {
     { rows: 1, cols: 1, aisle: true }
   );
 });
+
+test("migrates the temporary multi-aisle shape to one central aisle", () => {
+  const { getAisleAfterColumn, normalizeLayout } = loadLayoutHelpers();
+
+  assert.deepEqual(
+    plain(normalizeLayout({ rows: 6, cols: 6, aisles: [3, 6] })),
+    { rows: 6, cols: 6, aisle: true }
+  );
+  assert.equal(getAisleAfterColumn({ rows: 6, cols: 6, aisles: [3, 6] }), 2);
+});

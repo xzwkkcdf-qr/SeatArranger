@@ -8,10 +8,11 @@
 
   function normalizeLayout(layout) {
     const source = layout || {};
+    const legacyAisles = Array.isArray(source.aisles) && source.aisles.length > 0;
     return {
       rows: positiveInteger(source.rows, 6),
       cols: positiveInteger(source.cols, 6),
-      aisle: Boolean(source.aisle),
+      aisle: Boolean(source.aisle) || legacyAisles,
     };
   }
 

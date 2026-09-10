@@ -10,13 +10,13 @@
   let uidSeq = 1;
   const newUid = () => "u" + (uidSeq++);
 
-  const defaultLayout = { rows:6, cols:6, aisle:false };
+  const defaultLayout = { rows:6, cols:6, aisle:true };
   const defaultOptions = { showPodium:true, showId:false, showGrid:true };
 
   function blankClass(name){
     return {
       id: "c"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
-      name: name || "未命名班级",
+      name: name || "未命名方案",
       title: "",
       students: [],
       seating: [],
@@ -41,7 +41,19 @@
       if(raw){
         const data = JSON.parse(raw);
         state.classes = Array.isArray(data.classes) ? data.classes : [];
-        state.currentId = data.currentId || (state.classes[0] && state.classes[0].id) || null;
+        state.classes.forEach(c=>{
+          c.students = (Array.isArray(c.students) ? c.students : []).map(s=>({
+            uid: s && s.uid ? String(s.uid) : newUid(),
+            name: String(s && s.name || "").trim(),
+            sid: String(s && s.sid || "").trim(),
+            note: String(s && s.note || "").trim(),
+          })).filter(s=>s.name);
+          if(c.name === "示例班级" || c.name === "示例会场" || c.name === "未命名班级") c.name = c.name === "未命名班级" ? "未命名方案" : "示例方案";
+          if(c.title === "示例班级" || c.title === "示例会场") c.title = "示例方案";
+        });
+        state.currentId = state.classes.some(c=>c.id===data.currentId)
+          ? data.currentId
+          : (state.classes[0] && state.classes[0].id) || null;
         state.classes.forEach(c=>{
           c.layout = SeatLayout.normalizeLayout(c.layout);
           c.seating = Array.isArray(c.seating) ? c.seating : [];
@@ -54,7 +66,7 @@
       }
     }catch(e){ console.warn("加载存档失败",e); }
     if(state.classes.length===0){
-      const c = blankClass("示例班级");
+      const c = blankClass("示例方案");
       state.classes.push(c);
       state.currentId = c.id;
     }
@@ -220,7 +232,7 @@
     c.layout = SeatLayout.normalizeLayout(c.layout);
     $("#layout-rows").value = c.layout.rows;
     $("#layout-cols").value = c.layout.cols;
-    $("#layout-aisle").checked = c.layout.aisle;
+    $("#layout-aisle").checked = Boolean(c.layout.aisle);
   }
 
   /* ---------- 座位表渲染 ---------- */
@@ -257,10 +269,13 @@
     const seated = c.seating.filter(Boolean).length;
     const total = c.students.length;
     setStatus(`已入座 ${seated} / ${total} 名学生 · 布局：${layoutLabel(c.layout)}`);
+    const statSeated = $("#stat-seated"); if(statSeated) statSeated.textContent = seated;
+    const statTotal = $("#stat-total"); if(statTotal) statTotal.textContent = total;
+    const statCapacity = $("#stat-capacity"); if(statCapacity) statCapacity.textContent = seatCount(c.layout);
   }
   function layoutLabel(L){
     const normalized = SeatLayout.normalizeLayout(L);
-    return `行列式 ${normalized.rows}×${normalized.cols}${normalized.aisle ? " · 中央走道" : ""}`;
+    return `${normalized.rows} 行 × ${normalized.cols} 列${normalized.aisle ? " · 中央走道" : ""}`;
   }
 
   function seatHtml(c, idx, seatNoText, extraClass){
@@ -286,18 +301,20 @@
         <button data-act="special" title="${isSpecial?"取消特殊标记":"标记为特殊座位"}">${isSpecial?"★":"☆"}</button>
         ${student?`<button data-act="clear" title="移回名单">✕</button>`:""}
       </span>`;
-    return `<div class="${cls}" data-seat="${idx}" draggable="${student?'true':'false'}">${noText}${body}${actions}</div>`;
+    const label = student ? `${student.name}，第 ${seatNoText} 号座位` : `第 ${seatNoText} 号空座位`;
+    return `<div class="${cls}" data-seat="${idx}" draggable="${student?'true':'false'}" tabindex="${student?'0':'-1'}" aria-label="${escapeHtml(label)}">${noText}${body}${actions}</div>`;
   }
 
   function renderGrid(grid, c){
     const {rows,cols} = c.layout;
-    const aisleAfter = SeatLayout.getAisleAfterColumn(c.layout);
+    const aisleBoundary = SeatLayout.getAisleAfterColumn(c.layout);
+    const aisleAfter = new Set(aisleBoundary == null ? [] : [aisleBoundary]);
     for(let r=0;r<rows;r++){
       const row = document.createElement("div");
       row.className = "seat-row";
       for(let col=0;col<cols;col++){
         const idx = r*cols+col;
-        const extraClass = col === aisleAfter ? "aisle-after" : "";
+        const extraClass = aisleAfter.has(col) ? "aisle-after" : "";
         row.insertAdjacentHTML("beforeend", seatHtml(c, idx, String(idx+1), extraClass));
       }
       grid.appendChild(row);
@@ -325,6 +342,7 @@
       });
       // 作为放置目标
       seatEl.addEventListener("dragover", e=>{
+        if(!dragSource) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
         seatEl.classList.add("drag-over");
@@ -496,7 +514,7 @@
     "韩雨欣","唐文博","冯一帆","邓梓瑶","曹锦程","彭娅萱","袁牧之","许若男",
     "陆星辰","丁思源","沈嘉树","江语涵","任远舟","严梓涵","贾雨泽","秦晓月"
   ];
-  const SAMPLE_NOTES = ["视力矫正","靠近讲台","听力辅助","靠前优先"];
+  const SAMPLE_NOTES = ["VIP席位","靠近舞台","无障碍通道","前排优先"];
 
   function loadSample(){
     const c = curClass(); if(!c) return;
@@ -662,12 +680,6 @@
   }
 
   function printChart(){
-    // 让打印样式生效，标题可见
-    const c = curClass(); if(!c) return;
-    // 临时确保讲台与标题在打印中可见
-    const titleInput = $("#chart-title");
-    const prev = titleInput.value;
-    // 把标题渲染为文本节点供打印
     window.print();
   }
 
@@ -680,7 +692,6 @@
     $("#file-input").addEventListener("change", e=>{ handleFile(e.target.files[0]); e.target.value=""; });
 
     // 布局
-    $("#layout-aisle").addEventListener("change", applyLayout);
     $("#btn-apply-layout").addEventListener("click", applyLayout);
 
     // 排序/随机/清空
